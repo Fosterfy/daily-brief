@@ -1,14 +1,19 @@
-const redisUrl = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL
-const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN
-const isProd = !!redisUrl
+const isProd = !!(
+  process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL
+)
 
 function dateToScore(dateStr: string): number {
   return parseInt(dateStr.replace(/-/g, ''), 10)
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let _redis: any = null
 async function getRedis() {
-  const { Redis } = await import('@upstash/redis')
-  return new Redis({ url: redisUrl!, token: redisToken! })
+  if (!_redis) {
+    const { Redis } = await import('@upstash/redis')
+    _redis = Redis.fromEnv()
+  }
+  return _redis
 }
 
 export async function getBrief(date: string): Promise<string | null> {
@@ -17,7 +22,7 @@ export async function getBrief(date: string): Promise<string | null> {
     return mockGet(date)
   }
   const redis = await getRedis()
-  return redis.get<string>(`brief:${date}`)
+  return redis.get(`brief:${date}`)
 }
 
 export async function storeBrief(date: string, content: string): Promise<void> {
@@ -37,8 +42,7 @@ export async function listBriefs(): Promise<string[]> {
     return mockList()
   }
   const redis = await getRedis()
-  const dates = await redis.zrange<string[]>('briefs:index', 0, -1, { rev: true })
-  return dates
+  return redis.zrange('briefs:index', 0, -1, { rev: true })
 }
 
 export async function getLatestBrief(): Promise<{ date: string; content: string } | null> {
