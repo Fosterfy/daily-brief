@@ -10,11 +10,7 @@ async function sendNotification(date: string): Promise<void> {
   const to = process.env.NOTIFICATION_EMAIL
   const siteUrl = process.env.SITE_URL
 
-  console.log('[notify] env check — apiKey:', !!apiKey, 'to:', to, 'siteUrl:', siteUrl)
-  if (!apiKey || !to || !siteUrl) {
-    console.log('[notify] missing env vars, skipping')
-    return
-  }
+  if (!apiKey || !to || !siteUrl) return // not configured — skip silently
 
   // Date is derived from the request body, not server time, to avoid timezone
   // mismatches between the publisher and the Vercel server region.
@@ -102,13 +98,13 @@ async function sendNotification(date: string): Promise<void> {
   try {
     const { Resend } = await import('resend')
     const resend = new Resend(apiKey)
-    const result = await resend.emails.send({
+    const { error } = await resend.emails.send({
       from: 'onboarding@resend.dev',
       to,
       subject: `Daily Brief — ${formattedDate}`,
       html,
     })
-    console.log('[notify] Resend result:', JSON.stringify(result))
+    if (error) console.error('[notify] Resend error:', error)
   } catch (err) {
     console.error('[notify] Failed to send notification:', err)
   }
